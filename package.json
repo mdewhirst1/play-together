@@ -7,6 +7,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
+    "key": "touch key.json",
     "lint": "prettier -l 'src/**/*.ts' && eslint 'src/**/*.ts'",
     "lint:fix": "yarn run tidy && eslint --fix 'src/**/*.ts'",
     "tidy": "prettier --write 'src/**/*.ts'",
