@@ -15,6 +15,7 @@ import {
   getGamesSteamUrl,
   multiPlayerCategories
 } from "./steam-api-helpers/consts";
+import { Components, Dictionary } from "./types";
 
 const getUser = async (steamId: string) => {
   //try to get user from db
@@ -51,8 +52,8 @@ const checkUserGames = async (steamId: string) => {
         //turn games into insertable format
         const games = steamRes.games;
         games.forEach(
-          (game: { appid: any; name: any }, index: string | number) => {
-            games[index] = [game.appid, game.name];
+          (game: Components.Schemas.Game, index: string | number) => {
+            games[index] = [game.appId, game.name];
           }
         );
         //update db
@@ -66,8 +67,8 @@ const checkUserGames = async (steamId: string) => {
 };
 
 const getUsers = async (steamIds: string[]) => {
-  const partyPoopers: { [id: string]: { name: string } } = {};
-  const enrichedUserData: { [id: string]: { name: string } } = {};
+  const partyPoopers: Dictionary<{ name: string }> = {};
+  const enrichedUserData: Dictionary<{ name: string }> = {};
   for (const steamId of steamIds) {
     const userData = await getUser(steamId);
     const userGames = await checkUserGames(steamId);

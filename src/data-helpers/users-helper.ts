@@ -1,7 +1,8 @@
 import { closeDBConnection, connetToDB } from "./generic-helper";
+import { Components } from "../types";
 
 export const getUserFromDB = (steamId: string) => {
-  return new Promise<{ name: string; steamId: string }>((resolve, reject) => {
+  return new Promise<Components.Schemas.User>((resolve, reject) => {
     const db = connetToDB();
     db.get("SELECT * FROM users WHERE steamId = (?)", steamId, (err, row) => {
       if (err) {
