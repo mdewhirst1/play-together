@@ -8,6 +8,8 @@
   "private": true,
   "scripts": {
     "key": "touch key.json",
+    "key-test": "echo \"{\n  \"apiKey\":\"$dakey\"\n}\" > key-test.json",
+    "key-test-bash": "src/scriptybois/createKeyFile.sh",
     "lint": "prettier -l 'src/**/*.ts' && eslint 'src/**/*.ts'",
     "lint:fix": "yarn run tidy && eslint --fix 'src/**/*.ts'",
     "tidy": "prettier --write 'src/**/*.ts'",

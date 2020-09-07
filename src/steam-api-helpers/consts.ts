@@ -27,7 +27,9 @@ export const multiPlayerCategories = [
 
 export const getGamesSteamUrl =
   "http://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/";
+
 export const getAppDetailsSteamUrl =
   "https://store.steampowered.com/api/appdetails";
 
-//http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?key=  &steamids=
+export const getPlayerSummaries =
+  "http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/";

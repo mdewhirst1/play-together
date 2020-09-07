@@ -1,4 +1,4 @@
-import { getUserFromDB } from "./data-helpers/users-helper";
+import {addUserToDB, getUserFromDB} from "./data-helpers/users-helper";
 import {
   addUsersGamesToDB,
   checkUsersGamesInDB,
@@ -13,6 +13,7 @@ import {
 import {
   getAppDetailsSteamUrl,
   getGamesSteamUrl,
+  getPlayerSummaries,
   multiPlayerCategories
 } from "./steam-api-helpers/consts";
 import { Components, Dictionary } from "./types";
@@ -23,6 +24,17 @@ const getUser = async (steamId: string) => {
 
   if (!user) {
     //todo get from steam api and add to db
+    await Axios.get(getPlayerSummaries, {
+      params: {
+        key: apiKey,
+        steamids: steamId
+      }
+    }).then(async res => {
+      console.log(res.data.response.players[0]);
+      const steamData = res.data.response.players[0];
+      await addUserToDB(steamData.steamId, steamData.personaname);
+      //todo update db with user data
+    });
   }
 
   return user;
@@ -49,7 +61,7 @@ const checkUserGames = async (steamId: string) => {
     .then(async res => {
       const steamRes = res.data.response;
       if (steamRes.game_count && steamRes.game_count > 0) {
-        //turn games into insertable format
+        //turn games into insert-able format
         const games = steamRes.games;
         games.forEach(
           (game: Components.Schemas.Game, index: string | number) => {
@@ -183,13 +195,14 @@ const main = async (steamIds: string[]) => {
 main([
   // "76561197962348172", // BlueNovember
   // "76561197963604152", // Sarah
-  "76561197991832554", // Dan
+  // "76561197991832554", // Dan
   // "76561198005421655", // Eagle
   // "76561198009777530", // Rob
   // "76561198026808627", // Crux
-  "76561198040733783", // AggrievedSpark
+  // "76561198040733783", // AggrievedSpark
   "76561198056906429", // Matthew
   // "76561198075241793", // David
-  // "76561198075305674" // Shaun
-  "76561198096214189" // Shelby
+  // "76561198075305674", // Shaun
+  // "76561198096214189", // Shelby
+  "76561198060417890", // Arron
 ]);
