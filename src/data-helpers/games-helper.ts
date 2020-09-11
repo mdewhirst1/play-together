@@ -1,5 +1,6 @@
 import { closeDBConnection, connetToDB } from "./generic-helper";
 import { Components } from "../types";
+import Category = Components.Schemas.Category;
 
 //adds games to db if they are not already in there
 export const addGamesToDB = (games: Components.Schemas.Game[]) => {
@@ -23,7 +24,7 @@ export const addGamesToDB = (games: Components.Schemas.Game[]) => {
 
 //get game categories
 export const getGameCategoriesFromDB = (appId: string) => {
-  return new Promise<string[]>((resolve, reject) => {
+  return new Promise<Category[]>((resolve, reject) => {
     const db = connetToDB();
     db.get(
       "SELECT categories FROM games WHERE appId = (?)",

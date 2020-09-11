@@ -7,8 +7,13 @@ export declare namespace Components {
 
     export interface Game {
       name: string;
-      appId: string;
+      appid: string;
       categories?: string | null;
+    }
+
+    export interface Category {
+      id: number,
+      description: string
     }
   }
 }

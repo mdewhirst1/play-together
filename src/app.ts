@@ -17,6 +17,7 @@ import {
   multiPlayerCategories
 } from "./steam-api-helpers/consts";
 import { Components, Dictionary } from "./types";
+import Category = Components.Schemas.Category;
 
 const getUser = async (steamId: string) => {
   //try to get user from db
@@ -24,7 +25,7 @@ const getUser = async (steamId: string) => {
 
   if (!user) {
     //todo get from steam api and add to db
-    await Axios.get(getPlayerSummaries, {
+    return await Axios.get(getPlayerSummaries, {
       params: {
         key: apiKey,
         steamids: steamId
@@ -32,8 +33,11 @@ const getUser = async (steamId: string) => {
     }).then(async res => {
       console.log(res.data.response.players[0]);
       const steamData = res.data.response.players[0];
-      await addUserToDB(steamData.steamId, steamData.personaname);
-      //todo update db with user data
+      await addUserToDB(steamData.steamid, steamData.personaname)
+      return {
+        name: steamData.personaname,
+        steamId: steamData.steamid
+      }
     });
   }
 
@@ -65,12 +69,12 @@ const checkUserGames = async (steamId: string) => {
         const games = steamRes.games;
         games.forEach(
           (game: Components.Schemas.Game, index: string | number) => {
-            games[index] = [game.appId, game.name];
+            games[index] = [game.appid, game.name];
           }
         );
+        console.log(games)
         //update db
-        await addUsersGamesToDB(games, steamId);
-        return true;
+        return await addUsersGamesToDB(games, steamId).then(() => true);
       }
       // todo add a way to only check users that have no games once a day?
       return false;
@@ -95,10 +99,10 @@ const getUsers = async (steamIds: string[]) => {
   return [partyPoopers, enrichedUserData];
 };
 
-const getGameCategories = async (appId: string) => {
+const getGameCategories = async (appId: string): Promise<Category[]> => {
   const details = await getGameCategoriesFromDB(appId);
   if (!details) {
-    return await Axios.get(getAppDetailsSteamUrl, {
+    return Promise.resolve(await Axios.get(getAppDetailsSteamUrl, {
       params: {
         appids: appId
       }
@@ -115,7 +119,10 @@ const getGameCategories = async (appId: string) => {
         }
         return [];
       })
-      .catch(e => console.log(e));
+      .catch((e) => {
+        console.log(e)
+        return [];
+      }));
   }
   return details;
 };
@@ -124,7 +131,7 @@ const filterGamesByMultiplayer = async (commonGames: any) => {
   const commonMultiplayerGames = [];
   //todo maybe chunk requests into (100?) batches with a wait after each?
   for (const game of commonGames) {
-    const categories: any[] = await getGameCategories(game.appId);
+    const categories = await getGameCategories(game.appId);
     //if categories contains one of the multiplayer categories add to list
     if (
       categories
