@@ -7,15 +7,27 @@ For this app to be able to get peoples steam games it requires everyone's profil
 
 In order to be able to use this app you will require a steam api key inorder to allow the app to make requests to the steam api. It can be acquired from here https://steamcommunity.com/dev/ 
 
-once you have an api key run the following command to set up the local database and save your key.
+Once you have an api key run, copy key-test.json and place your steam key in the appropriate place.
+
+Install the dependencies with:
 
 ```
-yarn createKey <your key>
+yarn install
 ```
 
-eg run x to initialise
+We try to cache info retrieved from the steam API, and we use sqlite for this. To setup the database, run:
+
+```
+yarn run sql
+```
 
 That's it you are now set up and ready to start using play together, have fun!
+
+To execute the application, use:
+
+```
+yarn run gogo
+```
 
 ##How to use guide
 
