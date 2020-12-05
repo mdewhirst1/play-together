@@ -7,6 +7,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
+    "sql": "sqlite3 data/play-together-db.db < data/createDB.sql",
     "key": "touch key.json",
     "key-test": "echo \"{\n  \"apiKey\":\"$dakey\"\n}\" > key-test.json",
     "key-test-bash": "src/scriptybois/createKeyFile.sh",
@@ -21,7 +22,7 @@
   "dependencies": {
     "axios": "^0.19.2",
     "prettier": "^1.19.1",
-    "sqlite3": "^4.1.1",
+    "sqlite3": "^5.0.0",
     "ts-node": "^9.0.0",
     "typescript": "^3.8.2"
   },
