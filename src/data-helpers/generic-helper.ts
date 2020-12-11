@@ -3,7 +3,7 @@ import sqlite3 from "sqlite3";
 
 const dbPath = path.resolve(__dirname, "../../data/play-together-db.db");
 
-export const connetToDB = () =>
+export const connectToDB = () =>
   new sqlite3.Database(dbPath, err => {
     if (err) {
       console.error(err.message);

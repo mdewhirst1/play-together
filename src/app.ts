@@ -1,4 +1,4 @@
-import {addUserToDB, getUserFromDB} from "./data-helpers/users-helper";
+import { addUserToDB, getUserFromDB } from "./data-helpers/users-helper";
 import {
   addUsersGamesToDB,
   checkUsersGamesInDB,
@@ -24,7 +24,6 @@ const getUser = async (steamId: string) => {
   const user = await getUserFromDB(steamId);
 
   if (!user) {
-    //todo get from steam api and add to db
     return await Axios.get(getPlayerSummaries, {
       params: {
         key: apiKey,
@@ -33,11 +32,11 @@ const getUser = async (steamId: string) => {
     }).then(async res => {
       console.log(res.data.response.players[0]);
       const steamData = res.data.response.players[0];
-      await addUserToDB(steamData.steamid, steamData.personaname)
+      await addUserToDB(steamData.steamid, steamData.personaname);
       return {
         name: steamData.personaname,
         steamId: steamData.steamid
-      }
+      };
     });
   }
 
@@ -72,7 +71,7 @@ const checkUserGames = async (steamId: string) => {
             games[index] = [game.appid, game.name];
           }
         );
-        console.log(games)
+        console.log(games);
         //update db
         return await addUsersGamesToDB(games, steamId).then(() => true);
       }
@@ -102,27 +101,29 @@ const getUsers = async (steamIds: string[]) => {
 const getGameCategories = async (appId: string): Promise<Category[]> => {
   const details = await getGameCategoriesFromDB(appId);
   if (!details) {
-    return Promise.resolve(await Axios.get(getAppDetailsSteamUrl, {
-      params: {
-        appids: appId
-      }
-    })
-      .then(res => {
-        if (res.data[appId].success) {
-          const steamDetails = res.data[appId].data;
-          UpdateGameInDB(
-            appId,
-            steamDetails.name,
-            JSON.stringify(steamDetails.categories)
-          );
-          return steamDetails.categories;
+    return Promise.resolve(
+      await Axios.get(getAppDetailsSteamUrl, {
+        params: {
+          appids: appId
         }
-        return [];
       })
-      .catch((e) => {
-        console.log(e)
-        return [];
-      }));
+        .then(res => {
+          if (res.data[appId].success) {
+            const steamDetails = res.data[appId].data;
+            UpdateGameInDB(
+              appId,
+              steamDetails.name,
+              JSON.stringify(steamDetails.categories)
+            );
+            return steamDetails.categories;
+          }
+          return [];
+        })
+        .catch(e => {
+          console.log(e);
+          return [];
+        })
+    );
   }
   return details;
 };
@@ -199,17 +200,26 @@ const main = async (steamIds: string[]) => {
   }
 };
 
-main([
-  // "76561197962348172", // BlueNovember
-  // "76561197963604152", // Sarah
-  // "76561197991832554", // Dan
-  // "76561198005421655", // Eagle
-  // "76561198009777530", // Rob
-  // "76561198026808627", // Crux
-  // "76561198040733783", // AggrievedSpark
-  "76561198056906429", // Matthew
-  // "76561198075241793", // David
-  // "76561198075305674", // Shaun
-  // "76561198096214189", // Shelby
-  "76561198060417890", // Arron
-]);
+//todo this bit will grab steam ids, make it work better
+const steamIds: string[] = [];
+for (let j = 2; j < process.argv.length; j++) {
+  console.log(j + " -> " + process.argv[j]);
+  steamIds.push(process.argv[j]);
+}
+
+main(steamIds);
+
+// main([
+//   // "76561197962348172", // BlueNovember
+//   // "76561197963604152", // Sarah
+//   // "76561197991832554", // Dan
+//   // "76561198005421655", // Eagle
+//   // "76561198009777530", // Rob
+//   // "76561198026808627", // Crux
+//   // "76561198040733783", // AggrievedSpark
+//   "76561198056906429", // Matthew
+//   // "76561198075241793", // David
+//   // "76561198075305674", // Shaun
+//   // "76561198096214189", // Shelby
+//   "76561198060417890" // Arron
+// ]);

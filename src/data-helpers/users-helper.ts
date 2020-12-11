@@ -1,9 +1,9 @@
-import { closeDBConnection, connetToDB } from "./generic-helper";
+import { closeDBConnection, connectToDB } from "./generic-helper";
 import { Components } from "../types";
 
 export const getUserFromDB = (steamId: string) => {
   return new Promise<Components.Schemas.User>((resolve, reject) => {
-    const db = connetToDB();
+    const db = connectToDB();
     db.get("SELECT * FROM users WHERE steamId = (?)", steamId, (err, row) => {
       if (err) {
         reject(err);
@@ -22,7 +22,7 @@ export const getUserFromDB = (steamId: string) => {
 
 export const addUserToDB = (steamId: string, name: string) => {
   return new Promise((resolve, reject) => {
-    const db = connetToDB();
+    const db = connectToDB();
     db.run(
       "INSERT OR IGNORE INTO users (steamId, name) VALUES (?, ?)",
       [steamId, name],

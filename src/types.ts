@@ -12,8 +12,8 @@ export declare namespace Components {
     }
 
     export interface Category {
-      id: number,
-      description: string
+      id: number;
+      description: string;
     }
   }
 }

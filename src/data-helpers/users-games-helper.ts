@@ -1,9 +1,9 @@
-import { closeDBConnection, connetToDB } from "./generic-helper";
+import { closeDBConnection, connectToDB } from "./generic-helper";
 import { addGamesToDB } from "./games-helper";
 
 export const checkUsersGamesInDB = (steamId: string) => {
   return new Promise<{ count: number; lastUpdated: any }>((resolve, reject) => {
-    const db = connetToDB();
+    const db = connectToDB();
     db.get(
       "SELECT count(appId), last_updated FROM users_games WHERE steamId = (?)",
       steamId,
@@ -27,7 +27,7 @@ export const addUsersGamesToDB = async (games: any[], steamId: string) => {
     .catch(err => console.log(err))
     .then(() => {
       return new Promise((resolve, reject) => {
-        const db = connetToDB();
+        const db = connectToDB();
         games.forEach(game => {
           db.run(
             "INSERT OR REPLACE INTO users_games (steamId, appId) VALUES (?, ?)",
@@ -52,7 +52,7 @@ export const getGamesInCommonFromDB = async (steamIds: string[]) => {
     "SELECT DISTINCT g.appId, g.name FROM games as g LEFT OUTER JOIN users_games AS ug ON ug.appId == g.appId WHERE ug.steamId IS (?) ";
   const sqlQuery = steamIds.map(() => sqlPart).join(" INTERSECT ");
   return new Promise<{ appId: string; name: string }[]>((resolve, reject) => {
-    const db = connetToDB();
+    const db = connectToDB();
     db.all(sqlQuery, steamIds, (err, rows) => {
       if (err) {
         reject(err);

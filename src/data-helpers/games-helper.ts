@@ -1,11 +1,11 @@
-import { closeDBConnection, connetToDB } from "./generic-helper";
+import { closeDBConnection, connectToDB } from "./generic-helper";
 import { Components } from "../types";
 import Category = Components.Schemas.Category;
 
 //adds games to db if they are not already in there
 export const addGamesToDB = (games: Components.Schemas.Game[]) => {
   return new Promise((resolve, reject) => {
-    const db = connetToDB();
+    const db = connectToDB();
     games.forEach(game => {
       db.run(
         "INSERT OR IGNORE INTO games (appId, name) VALUES (?, ?)",
@@ -25,7 +25,7 @@ export const addGamesToDB = (games: Components.Schemas.Game[]) => {
 //get game categories
 export const getGameCategoriesFromDB = (appId: string) => {
   return new Promise<Category[]>((resolve, reject) => {
-    const db = connetToDB();
+    const db = connectToDB();
     db.get(
       "SELECT categories FROM games WHERE appId = (?)",
       appId,
@@ -46,7 +46,7 @@ export const UpdateGameInDB = (
   categories: string
 ) => {
   return new Promise((resolve, reject) => {
-    const db = connetToDB();
+    const db = connectToDB();
     db.run(
       "INSERT OR REPLACE INTO games (appId, name, categories) VALUES (?, ?, ?)",
       [appId, name, categories],
