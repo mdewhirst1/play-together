@@ -207,7 +207,11 @@ for (let j = 2; j < process.argv.length; j++) {
   steamIds.push(process.argv[j]);
 }
 
-main(steamIds);
+if (steamIds.length >= 2) {
+  main(steamIds);
+} else {
+  console.log("Need at least two people to find common games");
+}
 
 // main([
 //   // "76561197962348172", // BlueNovember

@@ -26,7 +26,7 @@ That's it you are now set up and ready to start using play together, have fun!
 To execute the application, use:
 
 ```
-yarn run gogo
+yarn run gogo <steamId> <steamId>... 
 ```
 
 ##How to use guide
