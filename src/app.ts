@@ -200,7 +200,7 @@ const main = async (steamIds: string[]) => {
   }
 };
 
-//todo this bit will grab steam ids, make it work better
+//this bit will grab steam ids from the command line
 const steamIds: string[] = [];
 for (let j = 2; j < process.argv.length; j++) {
   console.log(j + " -> " + process.argv[j]);
@@ -212,18 +212,3 @@ if (steamIds.length >= 2) {
 } else {
   console.log("Need at least two people to find common games");
 }
-
-// main([
-//   // "76561197962348172", // BlueNovember
-//   // "76561197963604152", // Sarah
-//   // "76561197991832554", // Dan
-//   // "76561198005421655", // Eagle
-//   // "76561198009777530", // Rob
-//   // "76561198026808627", // Crux
-//   // "76561198040733783", // AggrievedSpark
-//   "76561198056906429", // Matthew
-//   // "76561198075241793", // David
-//   // "76561198075305674", // Shaun
-//   // "76561198096214189", // Shelby
-//   "76561198060417890" // Arron
-// ]);
