@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noEmitOnError": true,
+        "strict": true,
+        "typeRoots": ["./node_modules/@types"],
+        "outDir": "dist",
+        "resolveJsonModule": true,
+        "moduleResolution": "node",
+        "esModuleInterop": true,
+        "target": "ES2018"
+    },
+    "include": [
+        "src/*"
+    ]
+}
