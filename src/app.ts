@@ -150,6 +150,20 @@ const filterGamesByMultiplayer = async (commonGames: any) => {
   return commonMultiplayerGames;
 };
 
+const combinations = (
+  players: string[]
+): { group: string[]; missing: string }[] => {
+  //todo make this find combinations with more than 1 player removed
+  const result: { group: string[]; missing: string }[] = [];
+  players.forEach(playerFilter => {
+    result.push({
+      group: players.filter(player => player !== playerFilter),
+      missing: playerFilter
+    });
+  });
+  return result;
+};
+
 const main = async (steamIds: string[]) => {
   const [partyPoopers, players] = await getUsers(steamIds);
 
@@ -161,38 +175,60 @@ const main = async (steamIds: string[]) => {
     console.log("found games for these users:", players);
   }
 
-  if (Object.keys(players).length > 1) {
-    console.log("attempting to find common games for users...");
-    const commonGames = await getGamesInCommonFromDB(Object.keys(players));
-    if (commonGames.length > 0) {
-      console.log(commonGames.length, "common games found:", commonGames);
-      console.log("attempting to filter common games to multiplayer ones...");
-      const commonMultiplayerGames = await filterGamesByMultiplayer(
-        commonGames
-      );
-      if (commonMultiplayerGames.length > 0) {
-        console.log(
-          commonMultiplayerGames.length,
-          "common multi-player games found for:",
-          Object.values(players).map(user => user.name),
-          commonMultiplayerGames
-        );
-        if (Object.keys(partyPoopers).length > 0) {
-          console.log(
-            "no games found for these party poopers:",
-            Object.values(partyPoopers).map(pooper => pooper.name),
-            "shame"
-          );
-        }
-      } else {
-        console.log("no common multiplayer games found :(");
-      }
-    } else {
-      console.log("no common games found :(");
-    }
+  if (Object.keys(players).length < 2) {
+    console.log("need at least 2 non party poopers to find common games");
+    return;
   }
 
-  //todo find games n-1 people have maybe when greater than 2?
+  console.log("attempting to find common games for users...");
+  const commonGames = await getGamesInCommonFromDB(Object.keys(players));
+  if (commonGames.length < 1) {
+    console.log("no common games found :(");
+    return;
+  }
+  console.log(commonGames.length, "common games found:", commonGames);
+
+  console.log("attempting to filter common games to multiplayer ones...");
+  const commonMultiplayerGames = await filterGamesByMultiplayer(commonGames);
+  if (commonMultiplayerGames.length < 1) {
+    console.log("no common multiplayer games found :(");
+    return;
+  }
+  console.log(
+    commonMultiplayerGames.length,
+    "common multi-player games found for:",
+    Object.values(players).map(user => user.name),
+    commonMultiplayerGames
+  );
+
+  if (Object.keys(partyPoopers).length > 0) {
+    console.log(
+      "no games found for these party poopers:",
+      Object.values(partyPoopers).map(pooper => pooper.name),
+      "shame"
+    );
+  }
+
+  if (Object.keys(players).length > 2) {
+    console.log("attempting to find common games that 1 person doesn't have");
+    const groupCombos = combinations(Object.keys(players));
+    console.log(groupCombos);
+  }
+
+  //todo find games n-1 people have
+  // if (Object.keys(players).length > 2) {
+  //   console.log("attempting to find common games most people have");
+  //   for (
+  //     let groupSize = Object.keys(players).length - 1;
+  //     groupSize >= 2;
+  //     groupSize--
+  //   ) {
+  //     console.log(
+  //       `attempting to find common games owned by ${groupSize} people`
+  //     );
+  //     console.log(combinations(Object.keys(players), groupSize));
+  //   }
+  // }
   //todo add party games to results?
 };
 
