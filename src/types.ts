@@ -2,12 +2,16 @@ export declare namespace Components {
   namespace Schemas {
     export interface User {
       name: string;
-      steamId: string;
+      games: Game[];
+    }
+
+    export interface PartyPooper {
+      name: string;
     }
 
     export interface Game {
       name: string;
-      appid: string;
+      appId: string;
       categories?: string | null;
     }
 

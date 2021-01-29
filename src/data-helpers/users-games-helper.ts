@@ -46,7 +46,7 @@ export const addUsersGamesToDB = async (games: any[], steamId: string) => {
     .catch(err => console.log(err));
 };
 
-//  get games in common for users
+//  get games in common for all users
 export const getGamesInCommonFromDB = async (steamIds: string[]) => {
   const sqlPart =
     "SELECT DISTINCT g.appId, g.name FROM games as g LEFT OUTER JOIN users_games AS ug ON ug.appId == g.appId WHERE ug.steamId IS (?) ";
@@ -54,6 +54,22 @@ export const getGamesInCommonFromDB = async (steamIds: string[]) => {
   return new Promise<{ appId: string; name: string }[]>((resolve, reject) => {
     const db = connectToDB();
     db.all(sqlQuery, steamIds, (err, rows) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(rows);
+    });
+    closeDBConnection(db);
+  });
+};
+
+//  get all games for a given user
+export const getGamesForUserFromDB = async (steamId: string) => {
+  const sqlPart =
+    "SELECT g.appId, g.name FROM games as g LEFT OUTER JOIN users_games AS ug ON ug.appId == g.appId WHERE ug.steamId IS (?) ";
+  return new Promise<{ appId: string; name: string }[]>((resolve, reject) => {
+    const db = connectToDB();
+    db.all(sqlPart, steamId, (err, rows) => {
       if (err) {
         reject(err);
       }
