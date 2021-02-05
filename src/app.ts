@@ -155,19 +155,6 @@ const main = async (steamIds: string[]) => {
   const [partyPoopers, players] = await getUsers(steamIds);
 
   if (Object.keys(partyPoopers).length > 0) {
-    console.log("party poopers found:", partyPoopers);
-  }
-
-  if (Object.keys(players).length > 0) {
-    console.log("found games for these users:", players);
-  }
-
-  if (Object.keys(players).length < 2) {
-    console.log("need at least 2 non party poopers to find common games");
-    return;
-  }
-
-  if (Object.keys(partyPoopers).length > 0) {
     console.log(
       "no games found for these party poopers:",
       Object.values(partyPoopers).map(pooper => pooper.name),
@@ -175,7 +162,23 @@ const main = async (steamIds: string[]) => {
     );
   }
 
-  console.log("attempting to find common games most people have");
+  if (Object.keys(players).length > 0) {
+    console.log(
+      "found games for these users:",
+      Object.values(players).map(user => user.name)
+    );
+  }
+
+  if (Object.keys(players).length < 2) {
+    console.log("need at least 2 non party poopers to find common games");
+    return;
+  }
+
+  let mostPeople = Math.round(Object.keys(players).length / 2);
+  mostPeople = mostPeople >= 2 ? mostPeople : 2;
+  console.log(
+    `attempting to find common games that at least ${mostPeople} people have ...`
+  );
   let gamesWithOwners: {
     appId: string;
     name: string;
@@ -199,16 +202,10 @@ const main = async (steamIds: string[]) => {
     });
   });
 
-  gamesWithOwners.sort((a, b) => b.owners.length - a.owners.length);
-
   //filter out games owned by less than half of players
-  let mostPeople = Math.round(Object.keys(players).length / 2);
-  mostPeople = mostPeople >= 2 ? mostPeople : 2;
-  console.log(`most people calculated to be ${mostPeople}`);
   gamesWithOwners = gamesWithOwners.filter(
     game => game.owners.length >= mostPeople
   );
-  console.log(gamesWithOwners);
 
   if (gamesWithOwners.length < 1) {
     console.log("no common games found :(");
@@ -231,9 +228,31 @@ const main = async (steamIds: string[]) => {
   console.log(
     commonMultiplayerGames.length,
     "common multi-player games found for:",
-    Object.values(players).map(user => user.name),
-    commonMultiplayerGames
+    Object.values(players).map(user => user.name)
   );
+
+  const multiplayerGamesByOwners: Dictionary<any[]> = {};
+  commonMultiplayerGames.forEach(commonGame => {
+    if (multiplayerGamesByOwners[commonGame.owners.length]) {
+      multiplayerGamesByOwners[commonGame.owners.length].push(commonGame.name);
+    } else {
+      multiplayerGamesByOwners[commonGame.owners.length] = [commonGame.name];
+    }
+  });
+
+  console.log(
+    multiplayerGamesByOwners[Object.keys(players).length].length,
+    "common multiplayer games everyone owns: ",
+    multiplayerGamesByOwners[Object.keys(players).length]
+  );
+
+  for (let i = Object.keys(players).length - 1; i >= mostPeople; i--) {
+    console.log(
+      multiplayerGamesByOwners[i].length,
+      `common multiplayer games owned by ${i} people: `,
+      multiplayerGamesByOwners[i]
+    );
+  }
 
   //todo add party games to results? (games that only require one person to own eg jackbox games)
 };
@@ -241,7 +260,6 @@ const main = async (steamIds: string[]) => {
 //this bit will grab steam ids from the command line
 const steamIds: string[] = [];
 for (let j = 2; j < process.argv.length; j++) {
-  console.log(j + " -> " + process.argv[j]);
   steamIds.push(process.argv[j]);
 }
 
