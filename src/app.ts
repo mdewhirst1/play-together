@@ -20,6 +20,7 @@ import { Components, Dictionary } from "./types";
 import Category = Components.Schemas.Category;
 import User = Components.Schemas.User;
 import PartyPooper = Components.Schemas.PartyPooper;
+import {addGameCategoriesToDB} from "./data-helpers/games-categories-helper";
 
 const getUser = async (steamId: string) => {
   //try to get user from db
@@ -117,6 +118,7 @@ const getGameCategories = async (appId: string): Promise<Category[]> => {
               steamDetails.name,
               JSON.stringify(steamDetails.categories)
             );
+            addGameCategoriesToDB(appId, steamDetails.categories);
             return steamDetails.categories;
           }
           return [];
@@ -127,6 +129,7 @@ const getGameCategories = async (appId: string): Promise<Category[]> => {
         })
     );
   }
+  await addGameCategoriesToDB(appId, details);
   return details;
 };
 
