@@ -20,7 +20,7 @@
     "node": ">=12.7.0"
   },
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": ">=0.21.1",
     "prettier": "^1.19.1",
     "sqlite3": "^5.0.0",
     "ts-node": "^9.0.0",
