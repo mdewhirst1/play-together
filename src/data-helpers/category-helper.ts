@@ -8,7 +8,7 @@ export const addCategoryToDB = (categories: Category[]) => {
     categories.forEach(category => {
       db.run(
         "INSERT OR IGNORE INTO categories (id, description) VALUES (?, ?)",
-        category,
+        [category.id, category.description],
         (err: any) => {
           if (err) {
             reject(err);

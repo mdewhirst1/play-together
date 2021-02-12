@@ -7,20 +7,20 @@ import {
 import Axios from "axios";
 import { apiKey } from "../key.json";
 import {
-  getGameCategoriesFromDB,
-  UpdateGameInDB
-} from "./data-helpers/games-helper";
-import {
   getAppDetailsSteamUrl,
   getGamesSteamUrl,
   getPlayerSummaries,
   multiPlayerCategories
 } from "./steam-api-helpers/consts";
 import { Components, Dictionary } from "./types";
-import Category = Components.Schemas.Category;
 import User = Components.Schemas.User;
 import PartyPooper = Components.Schemas.PartyPooper;
-import {addGameCategoriesToDB} from "./data-helpers/games-categories-helper";
+import {
+  addGameCategoriesToDB,
+  checkGameCategoriesFromDB,
+  getGamesWithCategoriesFromDB
+} from "./data-helpers/games-categories-helper";
+import Game = Components.Schemas.Game;
 
 const getUser = async (steamId: string) => {
   //try to get user from db
@@ -101,9 +101,17 @@ const getUsers = async (
   return [partyPoopers, enrichedUserData];
 };
 
-const getGameCategories = async (appId: string): Promise<Category[]> => {
-  const details = await getGameCategoriesFromDB(appId);
+const checkGameCategories = async (game: Game) => {
+  function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+  const appId = game.appId;
+  const gameName = game.name;
+  //todo add date last updated check
+  const details = await checkGameCategoriesFromDB(appId);
   if (!details) {
+    //todo remove sleep. Was added to try and avoid "Too Many Requests" errors
+    await sleep(1000);
     return Promise.resolve(
       await Axios.get(getAppDetailsSteamUrl, {
         params: {
@@ -113,45 +121,41 @@ const getGameCategories = async (appId: string): Promise<Category[]> => {
         .then(res => {
           if (res.data[appId].success) {
             const steamDetails = res.data[appId].data;
-            UpdateGameInDB(
-              appId,
-              steamDetails.name,
-              JSON.stringify(steamDetails.categories)
-            );
             addGameCategoriesToDB(appId, steamDetails.categories);
-            return steamDetails.categories;
+            console.log(`categories updated found for: ${gameName}`);
+            return;
           }
-          return [];
+          console.log(`no categories found for: ${gameName}`);
+          //add a null category so we don't keep checking for categories
+          addGameCategoriesToDB(appId, [{ id: 404, description: "not found" }]);
+          return;
         })
         .catch(e => {
-          console.log(e);
-          return [];
+          if (e.response && e.response.statusText) {
+            console.error(e.response.statusText);
+          } else {
+            console.error(e);
+          }
+          console.error(`was unable to get categories for: ${gameName}`);
+          return;
         })
     );
   }
-  await addGameCategoriesToDB(appId, details);
-  return details;
 };
 
 const filterGamesByMultiplayer = async (commonGames: any[]) => {
-  const commonMultiplayerGames = [];
-  for (const game of commonGames) {
-    const categories = await getGameCategories(game.appId);
-    //if categories contains one of the multiplayer categories add to list
-    if (
-      categories
-        .map(category => category.id)
-        .some(category =>
-          multiPlayerCategories
-            .map(multiPlayerCategory => multiPlayerCategory.id)
-            .includes(category)
-        )
-    ) {
-      commonMultiplayerGames.push(game);
-    }
-  }
-
-  return commonMultiplayerGames;
+  return await getGamesWithCategoriesFromDB(
+    commonGames.map(game => game.appId),
+    multiPlayerCategories.map(category => category.id)
+  )
+    .then(res => {
+      return commonGames.filter(game => res.includes(game.appId));
+    })
+    .catch(e => {
+      console.error(e);
+      console.error("was unable to filter games to multiplayer ones");
+      return [];
+    });
 };
 
 const main = async (steamIds: string[]) => {
@@ -215,6 +219,17 @@ const main = async (steamIds: string[]) => {
     return;
   }
   console.log(gamesWithOwners.length, "common games found.");
+
+  console.log("fetching game details...");
+  //todo this is the bit that is causing massive slow down in the filtering step, can it be improved
+  let counter = 1;
+  for (const game of gamesWithOwners) {
+    console.log(
+      `checking ${game.name} ${counter}/${gamesWithOwners.length} ...`
+    );
+    await checkGameCategories(game);
+    counter++;
+  }
 
   console.log("attempting to filter common games to multiplayer ones...");
   const commonMultiplayerGames = await filterGamesByMultiplayer(
