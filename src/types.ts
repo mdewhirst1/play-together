@@ -15,6 +15,11 @@ export declare namespace Components {
       categories?: string | null;
     }
 
+    export interface SteamGame {
+      name: string;
+      appid: string;
+    }
+
     export interface Category {
       id: number;
       description: string;

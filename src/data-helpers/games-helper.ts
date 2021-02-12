@@ -7,7 +7,7 @@ export const addGamesToDB = (games: Components.Schemas.Game[]) => {
     const db = connectToDB();
     games.forEach(game => {
       db.run(
-        "INSERT OR IGNORE INTO games (appId, name) VALUES (?, ?)",
+        "INSERT OR REPLACE INTO games (appId, name) VALUES (?, ?)",
         game,
         (err: any) => {
           if (err) {

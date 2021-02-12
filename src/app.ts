@@ -47,11 +47,12 @@ const getUser = async (steamId: string) => {
 };
 
 const checkUserGames = async (steamId: string) => {
-  //try to find games in db
   const userGames = await checkUsersGamesInDB(steamId);
+  const dateOffset = 24 * 60 * 60 * 1000; //1 days
+  const expiryDate = new Date();
+  expiryDate.setTime(expiryDate.getTime() - dateOffset);
 
-  //todo check last update on game
-  if (userGames.count > 0) {
+  if (userGames.count > 0 && new Date(userGames.lastUpdated) > expiryDate) {
     return true;
   }
 
@@ -69,10 +70,9 @@ const checkUserGames = async (steamId: string) => {
       if (steamRes.game_count && steamRes.game_count > 0) {
         //turn games into insert-able format
         const games = steamRes.games;
-        games.forEach((game: Components.Schemas.Game, index: number) => {
-          games[index] = [game.appId, game.name];
+        games.forEach((game: Components.Schemas.SteamGame, index: number) => {
+          games[index] = [game.appid, game.name];
         });
-        console.log(games);
         //update db
         return await addUsersGamesToDB(games, steamId).then(() => true);
       }
@@ -118,16 +118,16 @@ const checkGameCategories = async (game: Game) => {
           appids: appId
         }
       })
-        .then(res => {
+        .then(async res => {
           if (res.data[appId].success) {
             const steamDetails = res.data[appId].data;
-            addGameCategoriesToDB(appId, steamDetails.categories);
+            await addGameCategoriesToDB(appId, steamDetails.categories);
             console.log(`categories updated found for: ${gameName}`);
             return;
           }
           console.log(`no categories found for: ${gameName}`);
           //add a null category so we don't keep checking for categories
-          addGameCategoriesToDB(appId, [{ id: 404, description: "not found" }]);
+          await addGameCategoriesToDB(appId, [{id: 404, description: "not found"}]);
           return;
         })
         .catch(e => {
@@ -225,7 +225,7 @@ const main = async (steamIds: string[]) => {
   let counter = 1;
   for (const game of gamesWithOwners) {
     console.log(
-      `checking ${game.name} ${counter}/${gamesWithOwners.length} ...`
+      `checking ${counter}/${gamesWithOwners.length} ${game.name} ...`
     );
     await checkGameCategories(game);
     counter++;
@@ -257,6 +257,8 @@ const main = async (steamIds: string[]) => {
       multiplayerGamesByOwners[commonGame.owners.length] = [commonGame.name];
     }
   });
+
+  console.log(multiplayerGamesByOwners, "foo");
 
   console.log(
     multiplayerGamesByOwners[Object.keys(players).length].length,
