@@ -2,23 +2,25 @@ import { closeDBConnection, connectToDB } from "./generic-helper";
 import { addGamesToDB } from "./games-helper";
 
 export const checkUsersGamesInDB = (steamId: string) => {
-  return new Promise<{ count: number; lastUpdated: any }>((resolve, reject) => {
-    const db = connectToDB();
-    db.get(
-      "SELECT count(appId), last_updated FROM users_games WHERE steamId = (?)",
-      steamId,
-      (err, row) => {
-        if (err) {
-          reject(err);
+  return new Promise<{ count: number; lastUpdated: Date }>(
+    (resolve, reject) => {
+      const db = connectToDB();
+      db.get(
+        "SELECT count(appId), last_updated FROM users_games WHERE steamId = (?)",
+        steamId,
+        (err, row) => {
+          if (err) {
+            reject(err);
+          }
+          resolve({
+            count: row["count(appId)"],
+            lastUpdated: new Date(row.last_updated)
+          });
         }
-        resolve({
-          count: row["count(appId)"],
-          lastUpdated: row.last_updated
-        });
-      }
-    );
-    closeDBConnection(db);
-  });
+      );
+      closeDBConnection(db);
+    }
+  );
 };
 
 // add games to db if they are not already in there and then updates games owned by user

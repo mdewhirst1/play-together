@@ -1,4 +1,8 @@
-import { addUserToDB, getUserFromDB } from "./data-helpers/users-helper";
+import {
+  addUserGameCountToDB,
+  addUserToDB,
+  getUserFromDB
+} from "./data-helpers/users-helper";
 import {
   addUsersGamesToDB,
   checkUsersGamesInDB,
@@ -22,6 +26,10 @@ import {
 } from "./data-helpers/games-categories-helper";
 import Game = Components.Schemas.Game;
 
+const dateOffset = 24 * 60 * 60 * 1000; //1 days
+const expiryDate = new Date();
+expiryDate.setTime(expiryDate.getTime() - dateOffset);
+
 const getUser = async (steamId: string) => {
   //try to get user from db
   const user = await getUserFromDB(steamId);
@@ -38,7 +46,10 @@ const getUser = async (steamId: string) => {
       await addUserToDB(steamData.steamid, steamData.personaname);
       return {
         name: steamData.personaname,
-        steamId: steamData.steamid
+        steamId: steamData.steamid,
+        gameCount: 0,
+        // eslint-disable-next-line @typescript-eslint/camelcase
+        last_updated: new Date()
       };
     });
   }
@@ -46,17 +57,14 @@ const getUser = async (steamId: string) => {
   return user;
 };
 
-const checkUserGames = async (steamId: string) => {
+const checkUserGames = async (steamId: string, name: string) => {
   const userGames = await checkUsersGamesInDB(steamId);
-  const dateOffset = 24 * 60 * 60 * 1000; //1 days
-  const expiryDate = new Date();
-  expiryDate.setTime(expiryDate.getTime() - dateOffset);
 
-  if (userGames.count > 0 && new Date(userGames.lastUpdated) > expiryDate) {
+  if (userGames.count > 0 && userGames.lastUpdated > expiryDate) {
     return true;
   }
 
-  //no games found checking steam api
+  //no games or out of date info found checking steam api
   return await Axios.get(getGamesSteamUrl, {
     params: {
       key: apiKey,
@@ -74,9 +82,15 @@ const checkUserGames = async (steamId: string) => {
           games[index] = [game.appid, game.name];
         });
         //update db
-        return await addUsersGamesToDB(games, steamId).then(() => true);
+        console.log(`updating DB for ${name} ...`);
+        await addUserGameCountToDB(steamId, steamRes.game_count);
+        await addUsersGamesToDB(games, steamId);
+        return true;
       }
-      // todo add a way to only check users that have no games once a day?
+      console.log(
+        `no games found for ${name} in steam, please check profile public settings`
+      );
+      await addUserGameCountToDB(steamId, 0);
       return false;
     })
     .catch(err => console.log(err));
@@ -89,7 +103,14 @@ const getUsers = async (
   const enrichedUserData: Dictionary<User> = {};
   for (const steamId of steamIds) {
     const userData = await getUser(steamId);
-    const userGames = await checkUserGames(steamId);
+    let userGames;
+    if (
+      userData.gameCount > 0 ||
+      (userData.gameCount === 0 && userData.last_updated < expiryDate)
+    ) {
+      //don't check users that have already been checked today and have 0 games
+      userGames = await checkUserGames(steamId, userData.name);
+    }
     if (!userGames) {
       //party pooper found!!!1!
       partyPoopers[steamId] = { name: userData.name };
@@ -127,7 +148,9 @@ const checkGameCategories = async (game: Game) => {
           }
           console.log(`no categories found for: ${gameName}`);
           //add a null category so we don't keep checking for categories
-          await addGameCategoriesToDB(appId, [{id: 404, description: "not found"}]);
+          await addGameCategoriesToDB(appId, [
+            { id: 404, description: "not found" }
+          ]);
           return;
         })
         .catch(e => {
@@ -160,14 +183,6 @@ const filterGamesByMultiplayer = async (commonGames: any[]) => {
 
 const main = async (steamIds: string[]) => {
   const [partyPoopers, players] = await getUsers(steamIds);
-
-  if (Object.keys(partyPoopers).length > 0) {
-    console.log(
-      "no games found for these party poopers:",
-      Object.values(partyPoopers).map(pooper => pooper.name),
-      "shame"
-    );
-  }
 
   if (Object.keys(players).length > 0) {
     console.log(
@@ -245,9 +260,17 @@ const main = async (steamIds: string[]) => {
   //todo improve formatting, only state owners once and include missing owners
   console.log(
     commonMultiplayerGames.length,
-    "common multi-player games found for:",
+    "multi-player games found for:",
     Object.values(players).map(user => user.name)
   );
+
+  if (Object.keys(partyPoopers).length > 0) {
+    console.log(
+      "no games found for these party poopers:",
+      Object.values(partyPoopers).map(pooper => pooper.name),
+      "shame"
+    );
+  }
 
   const multiplayerGamesByOwners: Dictionary<any[]> = {};
   commonMultiplayerGames.forEach(commonGame => {
@@ -258,18 +281,16 @@ const main = async (steamIds: string[]) => {
     }
   });
 
-  console.log(multiplayerGamesByOwners, "foo");
-
   console.log(
     multiplayerGamesByOwners[Object.keys(players).length].length,
-    "common multiplayer games everyone owns: ",
+    "multiplayer games everyone owns: ",
     multiplayerGamesByOwners[Object.keys(players).length]
   );
 
   for (let i = Object.keys(players).length - 1; i >= mostPeople; i--) {
     console.log(
       multiplayerGamesByOwners[i].length,
-      `common multiplayer games owned by ${i} people: `,
+      `multiplayer games owned by ${i} people: `,
       multiplayerGamesByOwners[i]
     );
   }
