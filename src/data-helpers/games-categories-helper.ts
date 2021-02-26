@@ -53,9 +53,9 @@ export const getGamesWithCategoriesFromDB = (
   return new Promise<string[]>((resolve, reject) => {
     const db = connectToDB();
     db.all(
-      "SELECT DISTINCT game.appId FROM games_categories as game LEFT OUTER JOIN categories AS category ON game.categoryid == category.id WHERE game.appId IN (" +
+      "SELECT DISTINCT appid FROM games_categories WHERE appid IN (" +
         appIds.map(() => "?").join(",") +
-        ") AND category.id IN (" +
+        ") AND categoryid IN (" +
         categoryIds.map(() => "?").join(",") +
         ") ",
       [...appIds, ...categoryIds],
@@ -64,6 +64,33 @@ export const getGamesWithCategoriesFromDB = (
           reject(err);
         }
         const result = rows.map(row => row.appid.toString());
+        resolve(result);
+      }
+    );
+    closeDBConnection(db);
+  });
+};
+
+export const getGamesWithAllCategoriesFromDB = (
+  appIds: string[],
+  categoryIds: number[]
+) => {
+  const sqlString =
+    "SELECT games.appId FROM games as games LEFT OUTER JOIN games_categories AS gc ON gc.appid == games.appId where gc.categoryid == ?";
+  const sqlBuilder = categoryIds.map(() => sqlString).join(" INTERSECT ");
+  return new Promise<string[]>((resolve, reject) => {
+    const db = connectToDB();
+    db.all(
+      "SELECT games.appId FROM games as games LEFT OUTER JOIN games_categories AS gc ON gc.appid == games.appId where games.appid in (" +
+        appIds.map(() => "?").join(",") +
+        ") INTERSECT " +
+        sqlBuilder,
+      [...appIds, ...categoryIds],
+      (err, rows) => {
+        if (err) {
+          reject(err);
+        }
+        const result = rows.map(row => row.appId.toString());
         resolve(result);
       }
     );

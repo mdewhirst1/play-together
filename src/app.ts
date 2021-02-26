@@ -14,7 +14,7 @@ import {
   getAppDetailsSteamUrl,
   getGamesSteamUrl,
   getPlayerSummaries,
-  multiPlayerCategories
+  multiPlayerCategories, possiblePartyGames
 } from "./steam-api-helpers/consts";
 import { Components, Dictionary } from "./types";
 import User = Components.Schemas.User;
@@ -22,6 +22,7 @@ import PartyPooper = Components.Schemas.PartyPooper;
 import {
   addGameCategoriesToDB,
   checkGameCategoriesFromDB,
+  getGamesWithAllCategoriesFromDB,
   getGamesWithCategoriesFromDB
 } from "./data-helpers/games-categories-helper";
 import Game = Components.Schemas.Game;
@@ -181,6 +182,21 @@ const filterGamesByMultiplayer = async (commonGames: any[]) => {
     });
 };
 
+const filterGamesByPartyCategories = async (commonGames: any[]) => {
+  return await getGamesWithAllCategoriesFromDB(
+    commonGames.map(game => game.appId),
+    possiblePartyGames.map(category => category.id)
+  )
+    .then(res => {
+      return commonGames.filter(game => res.includes(game.appId));
+    })
+    .catch(e => {
+      console.error(e);
+      console.error("was unable to filter games to party ones");
+      return [];
+    });
+};
+
 const main = async (steamIds: string[]) => {
   const [partyPoopers, players] = await getUsers(steamIds);
 
@@ -201,7 +217,7 @@ const main = async (steamIds: string[]) => {
   console.log(
     `attempting to find common games that at least ${mostPeople} people have ...`
   );
-  let gamesWithOwners: {
+  const gamesWithOwners: {
     appId: string;
     name: string;
     owners: string[];
@@ -225,22 +241,22 @@ const main = async (steamIds: string[]) => {
   });
 
   //filter out games owned by less than half of players
-  gamesWithOwners = gamesWithOwners.filter(
+  const gamesWithMostOwners = gamesWithOwners.filter(
     game => game.owners.length >= mostPeople
   );
 
-  if (gamesWithOwners.length < 1) {
+  if (gamesWithMostOwners.length < 1) {
     console.log("no common games found :(");
     return;
   }
-  console.log(gamesWithOwners.length, "common games found.");
+  console.log(gamesWithMostOwners.length, "common games found.");
 
   console.log("fetching game details...");
   //todo this is the bit that is causing massive slow down in the filtering step, can it be improved
   let counter = 1;
-  for (const game of gamesWithOwners) {
+  for (const game of gamesWithMostOwners) {
     console.log(
-      `checking ${counter}/${gamesWithOwners.length} ${game.name} ...`
+      `checking ${counter}/${gamesWithMostOwners.length} ${game.name} ...`
     );
     await checkGameCategories(game);
     counter++;
@@ -248,7 +264,7 @@ const main = async (steamIds: string[]) => {
 
   console.log("attempting to filter common games to multiplayer ones...");
   const commonMultiplayerGames = await filterGamesByMultiplayer(
-    gamesWithOwners
+    gamesWithMostOwners
   );
 
   if (commonMultiplayerGames.length < 1) {
@@ -281,21 +297,33 @@ const main = async (steamIds: string[]) => {
     }
   });
 
-  console.log(
-    multiplayerGamesByOwners[Object.keys(players).length].length,
-    "multiplayer games everyone owns: ",
-    multiplayerGamesByOwners[Object.keys(players).length]
-  );
-
-  for (let i = Object.keys(players).length - 1; i >= mostPeople; i--) {
+  for (let i = Object.keys(players).length; i >= mostPeople; i--) {
     console.log(
       multiplayerGamesByOwners[i].length,
-      `multiplayer games owned by ${i} people: `,
-      multiplayerGamesByOwners[i]
+      `multiplayer games owned by ${
+        i === Object.keys(players).length ? "everyone" : `${i} people`
+      }: `,
+      JSON.stringify(multiplayerGamesByOwners[i], null, 2)
     );
   }
 
   //todo add party games to results? (games that only require one person to own eg jackbox games)
+  //find all games owned by any of players that have all categories from possiblePartyGames
+  const partyGamesFound = await filterGamesByPartyCategories(gamesWithOwners);
+
+  const formattedPartyGames: string[] = [];
+  //format {name owners}
+  partyGamesFound.forEach(partyGame => {
+    if (!formattedPartyGames[partyGame.name]) {
+      formattedPartyGames.push(partyGame.name);
+    }
+  });
+
+  console.log(partyGamesFound.length, "possible party games found");
+  console.log(
+    "these games have the remote play together category and may only require one person for all to play"
+  );
+  console.log(JSON.stringify(formattedPartyGames.sort(), null, 2));
 };
 
 //this bit will grab steam ids from the command line
