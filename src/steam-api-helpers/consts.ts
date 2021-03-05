@@ -22,16 +22,24 @@ export const multiPlayerCategories = [
   {
     id: 24,
     description: "Shared/Split Screen"
+  },
+  {
+    id: 37,
+    description: "Shared/Split Screen PvP"
   }
 ];
 
 //Party games are games only one person needs for everyone to play (eg the jackbox party pack)
 //As steam doesn't have a party game category these are the closest
-//However some games with these categories will not be party games (eg divinity original sin 2)
+//However some games with these categories will not be party games
 export const possiblePartyGames = [
   {
     id: 1,
     description: "Multi-player"
+  },
+  {
+    id: 41,
+    description: "Remote Play on Phone"
   },
   {
     id: 44,

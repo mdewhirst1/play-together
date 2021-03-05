@@ -13,6 +13,7 @@ export declare namespace Components {
       name: string;
       appId: string;
       categories?: string | null;
+      price?: string;
     }
 
     export interface SteamGame {

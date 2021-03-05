@@ -13,19 +13,21 @@ import { apiKey } from "../key.json";
 import {
   getAppDetailsSteamUrl,
   getGamesSteamUrl,
-  getPlayerSummaries,
-  multiPlayerCategories, possiblePartyGames
+  getPlayerSummaries
 } from "./steam-api-helpers/consts";
 import { Components, Dictionary } from "./types";
 import User = Components.Schemas.User;
 import PartyPooper = Components.Schemas.PartyPooper;
 import {
   addGameCategoriesToDB,
-  checkGameCategoriesFromDB,
-  getGamesWithAllCategoriesFromDB,
-  getGamesWithCategoriesFromDB
+  checkGameCategoriesFromDB
 } from "./data-helpers/games-categories-helper";
 import Game = Components.Schemas.Game;
+import {
+  filterGamesByMultiplayer,
+  filterGamesByPartyCategories
+} from "./filters/filters";
+import {addGameDetailsToDB, getGameDetailsFromDB} from "./data-helpers/games-helper";
 
 const dateOffset = 24 * 60 * 60 * 1000; //1 days
 const expiryDate = new Date();
@@ -144,6 +146,17 @@ const checkGameCategories = async (game: Game) => {
           if (res.data[appId].success) {
             const steamDetails = res.data[appId].data;
             await addGameCategoriesToDB(appId, steamDetails.categories);
+            let price = null;
+            if (
+              steamDetails.price_overview &&
+              steamDetails.price_overview.final_formatted &&
+              steamDetails.price_overview.currency === "GBP"
+            ) {
+              price = steamDetails.price_overview.final_formatted;
+              await addGameDetailsToDB(appId, price);
+            } else if (steamDetails.is_free) {
+              await addGameDetailsToDB(appId, "Free");
+            }
             console.log(`categories updated found for: ${gameName}`);
             return;
           }
@@ -167,33 +180,20 @@ const checkGameCategories = async (game: Game) => {
   }
 };
 
-const filterGamesByMultiplayer = async (commonGames: any[]) => {
-  return await getGamesWithCategoriesFromDB(
-    commonGames.map(game => game.appId),
-    multiPlayerCategories.map(category => category.id)
-  )
-    .then(res => {
-      return commonGames.filter(game => res.includes(game.appId));
-    })
-    .catch(e => {
-      console.error(e);
-      console.error("was unable to filter games to multiplayer ones");
-      return [];
-    });
-};
-
-const filterGamesByPartyCategories = async (commonGames: any[]) => {
-  return await getGamesWithAllCategoriesFromDB(
-    commonGames.map(game => game.appId),
-    possiblePartyGames.map(category => category.id)
-  )
-    .then(res => {
-      return commonGames.filter(game => res.includes(game.appId));
-    })
-    .catch(e => {
-      console.error(e);
-      console.error("was unable to filter games to party ones");
-      return [];
+const printGames = (games: any[], players: any[]) => {
+  games
+    .sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
+    .forEach(game => {
+      const missing = players.filter(player => !game.owners.includes(player));
+      console.log(game.name);
+      missing.length > 0
+        ? console.log(
+            missing,
+            `need to get this, current price ${
+              game.price ? `is ${game.price}` : "not found"
+            } \n`
+          )
+        : "";
     });
 };
 
@@ -272,8 +272,6 @@ const main = async (steamIds: string[]) => {
     return;
   }
 
-  //todo fix log to list all games, no truncation
-  //todo improve formatting, only state owners once and include missing owners
   console.log(
     commonMultiplayerGames.length,
     "multi-player games found for:",
@@ -289,21 +287,34 @@ const main = async (steamIds: string[]) => {
   }
 
   const multiplayerGamesByOwners: Dictionary<any[]> = {};
-  commonMultiplayerGames.forEach(commonGame => {
+  for (const commonGame of commonMultiplayerGames) {
     if (multiplayerGamesByOwners[commonGame.owners.length]) {
-      multiplayerGamesByOwners[commonGame.owners.length].push(commonGame.name);
+      multiplayerGamesByOwners[commonGame.owners.length].push({
+        name: commonGame.name,
+        owners: commonGame.owners,
+        price: (await getGameDetailsFromDB(commonGame.appId)).price
+      });
     } else {
-      multiplayerGamesByOwners[commonGame.owners.length] = [commonGame.name];
+      multiplayerGamesByOwners[commonGame.owners.length] = [
+        {
+          name: commonGame.name,
+          owners: commonGame.owners,
+          price: (await getGameDetailsFromDB(commonGame.appId)).price
+        }
+      ];
     }
-  });
+  }
 
   for (let i = Object.keys(players).length; i >= mostPeople; i--) {
     console.log(
       multiplayerGamesByOwners[i].length,
       `multiplayer games owned by ${
         i === Object.keys(players).length ? "everyone" : `${i} people`
-      }: `,
-      JSON.stringify(multiplayerGamesByOwners[i], null, 2)
+      }: `
+    );
+    printGames(
+      multiplayerGamesByOwners[i],
+      Object.values(players).map(user => user.name)
     );
   }
 
@@ -321,7 +332,7 @@ const main = async (steamIds: string[]) => {
 
   console.log(partyGamesFound.length, "possible party games found");
   console.log(
-    "these games have the remote play together category and may only require one person for all to play"
+    "these games have the remote play together and multiplayer categories and may only require one person for all to play"
   );
   console.log(JSON.stringify(formattedPartyGames.sort(), null, 2));
 };
