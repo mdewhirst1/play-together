@@ -1,6 +1,5 @@
 import { closeDBConnection, connectToDB } from "./generic-helper";
-import { Components } from "../types";
-import Category = Components.Schemas.Category;
+import { Category } from "../types";
 import { addCategoryToDB } from "./category-helper";
 
 export const addGameCategoriesToDB = async (

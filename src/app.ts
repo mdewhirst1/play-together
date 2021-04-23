@@ -1,33 +1,22 @@
+import { addUserToDB, getUserFromDB } from "./data-helpers/users-helper";
 import {
-  addUserGameCountToDB,
-  addUserToDB,
-  getUserFromDB
-} from "./data-helpers/users-helper";
-import {
-  addUsersGamesToDB,
   checkUsersGamesInDB,
   getGamesForUserFromDB
 } from "./data-helpers/users-games-helper";
 import Axios from "axios";
 import { apiKey } from "../key.json";
-import {
-  getAppDetailsSteamUrl,
-  getGamesSteamUrl,
-  getPlayerSummaries
-} from "./steam-api-helpers/consts";
-import { Components, Dictionary } from "./types";
-import User = Components.Schemas.User;
-import PartyPooper = Components.Schemas.PartyPooper;
-import {
-  addGameCategoriesToDB,
-  checkGameCategoriesFromDB
-} from "./data-helpers/games-categories-helper";
-import Game = Components.Schemas.Game;
+import { getPlayerSummaries } from "./steam-api-helpers/consts";
+import { Dictionary, Game, PartyPooper, User } from "./types";
+import { checkGameCategoriesFromDB } from "./data-helpers/games-categories-helper";
 import {
   filterGamesByMultiplayer,
   filterGamesByPartyCategories
 } from "./filters/filters";
-import {addGameDetailsToDB, getGameDetailsFromDB} from "./data-helpers/games-helper";
+import { getGameDetailsFromDB } from "./data-helpers/games-helper";
+import {
+  getGameDetailsFromSteam,
+  getUserGamesFromSteam
+} from "./steamCalls/steamCalls";
 
 const dateOffset = 24 * 60 * 60 * 1000; //1 days
 const expiryDate = new Date();
@@ -60,7 +49,7 @@ const getUser = async (steamId: string) => {
   return user;
 };
 
-const checkUserGames = async (steamId: string, name: string) => {
+const checkUserGames = async (steamId: string, playerName: string) => {
   const userGames = await checkUsersGamesInDB(steamId);
 
   if (userGames.count > 0 && userGames.lastUpdated > expiryDate) {
@@ -68,35 +57,7 @@ const checkUserGames = async (steamId: string, name: string) => {
   }
 
   //no games or out of date info found checking steam api
-  return await Axios.get(getGamesSteamUrl, {
-    params: {
-      key: apiKey,
-      steamid: steamId,
-      // eslint-disable-next-line @typescript-eslint/camelcase
-      include_appinfo: 1
-    }
-  })
-    .then(async res => {
-      const steamRes = res.data.response;
-      if (steamRes.game_count && steamRes.game_count > 0) {
-        //turn games into insert-able format
-        const games = steamRes.games;
-        games.forEach((game: Components.Schemas.SteamGame, index: number) => {
-          games[index] = [game.appid, game.name];
-        });
-        //update db
-        console.log(`updating DB for ${name} ...`);
-        await addUserGameCountToDB(steamId, steamRes.game_count);
-        await addUsersGamesToDB(games, steamId);
-        return true;
-      }
-      console.log(
-        `no games found for ${name} in steam, please check profile public settings`
-      );
-      await addUserGameCountToDB(steamId, 0);
-      return false;
-    })
-    .catch(err => console.log(err));
+  return await getUserGamesFromSteam(steamId, playerName);
 };
 
 const getUsers = async (
@@ -125,76 +86,40 @@ const getUsers = async (
   return [partyPoopers, enrichedUserData];
 };
 
-const checkGameCategories = async (game: Game) => {
+const checkGameCategories = async (game: Game): Promise<void> => {
   function sleep(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
   const appId = game.appId;
-  const gameName = game.name;
   //todo add date last updated check
   const details = await checkGameCategoriesFromDB(appId);
   if (!details) {
     //todo remove sleep. Was added to try and avoid "Too Many Requests" errors
     await sleep(1000);
-    return Promise.resolve(
-      await Axios.get(getAppDetailsSteamUrl, {
-        params: {
-          appids: appId
-        }
-      })
-        .then(async res => {
-          if (res.data[appId].success) {
-            const steamDetails = res.data[appId].data;
-            await addGameCategoriesToDB(appId, steamDetails.categories);
-            let price = null;
-            if (
-              steamDetails.price_overview &&
-              steamDetails.price_overview.final_formatted &&
-              steamDetails.price_overview.currency === "GBP"
-            ) {
-              price = steamDetails.price_overview.final_formatted;
-              await addGameDetailsToDB(appId, price);
-            } else if (steamDetails.is_free) {
-              await addGameDetailsToDB(appId, "Free");
-            }
-            console.log(`categories updated found for: ${gameName}`);
-            return;
-          }
-          console.log(`no categories found for: ${gameName}`);
-          //add a null category so we don't keep checking for categories
-          await addGameCategoriesToDB(appId, [
-            { id: 404, description: "not found" }
-          ]);
-          return;
-        })
-        .catch(e => {
-          if (e.response && e.response.statusText) {
-            console.error(e.response.statusText);
-          } else {
-            console.error(e);
-          }
-          console.error(`was unable to get categories for: ${gameName}`);
-          return;
-        })
-    );
+    await getGameDetailsFromSteam(game);
   }
 };
 
-const printGames = (games: any[], players: any[]) => {
-  games
-    .sort((a, b) => (a.name > b.name ? 1 : b.name > a.name ? -1 : 0))
-    .forEach(game => {
-      const missing = players.filter(player => !game.owners.includes(player));
-      console.log(game.name);
-      missing.length > 0
-        ? console.log(
-            missing,
-            `need to get this, current price ${
-              game.price ? `is ${game.price}` : "not found"
-            } \n`
-          )
-        : "";
-    });
+const printGames = async (games: Game[], players: any[]) => {
+  for (const game of games.sort((a, b) =>
+    a.name > b.name ? 1 : b.name > a.name ? -1 : 0
+  )) {
+    const missing = players.filter(player => !game.owners!.includes(player));
+    if (!game.price) {
+      //fetch details from steam? or some check in db?
+      await getGameDetailsFromSteam(game);
+      game.price = (await getGameDetailsFromDB(game.appId)).price;
+    }
+    console.log(game.name);
+    missing.length > 0
+      ? console.log(
+          missing,
+          `need to get this, current price ${
+            game.price ? `is ${game.price}` : "not found"
+          } \n`
+        )
+      : "";
+  }
 };
 
 const main = async (steamIds: string[]) => {
@@ -226,7 +151,7 @@ const main = async (steamIds: string[]) => {
   Object.keys(players).forEach(steamId => {
     const player = players[steamId];
     const games = player.games;
-    games.forEach(game => {
+    games.forEach((game: Game) => {
       const foundIndex = gamesWithOwners.findIndex(x => x.appId === game.appId);
       if (foundIndex > 0) {
         gamesWithOwners[foundIndex].owners.push(player.name);
@@ -286,10 +211,11 @@ const main = async (steamIds: string[]) => {
     );
   }
 
-  const multiplayerGamesByOwners: Dictionary<any[]> = {};
+  const multiplayerGamesByOwners: Dictionary<Game[]> = {};
   for (const commonGame of commonMultiplayerGames) {
     if (multiplayerGamesByOwners[commonGame.owners.length]) {
       multiplayerGamesByOwners[commonGame.owners.length].push({
+        appId: commonGame.appId,
         name: commonGame.name,
         owners: commonGame.owners,
         price: (await getGameDetailsFromDB(commonGame.appId)).price
@@ -297,6 +223,7 @@ const main = async (steamIds: string[]) => {
     } else {
       multiplayerGamesByOwners[commonGame.owners.length] = [
         {
+          appId: commonGame.appId,
           name: commonGame.name,
           owners: commonGame.owners,
           price: (await getGameDetailsFromDB(commonGame.appId)).price
@@ -312,13 +239,12 @@ const main = async (steamIds: string[]) => {
         i === Object.keys(players).length ? "everyone" : `${i} people`
       }: `
     );
-    printGames(
+    await printGames(
       multiplayerGamesByOwners[i],
       Object.values(players).map(user => user.name)
     );
   }
 
-  //todo add party games to results? (games that only require one person to own eg jackbox games)
   //find all games owned by any of players that have all categories from possiblePartyGames
   const partyGamesFound = await filterGamesByPartyCategories(gamesWithOwners);
 

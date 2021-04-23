@@ -1,8 +1,8 @@
 import { closeDBConnection, connectToDB } from "./generic-helper";
-import { Components } from "../types";
+import { Game } from "../types";
 
 //adds games to db if they are not already in there
-export const addGamesToDB = (games: Components.Schemas.Game[]) => {
+export const addGamesToDB = (games: Game[]) => {
   return new Promise((resolve, reject) => {
     const db = connectToDB();
     games.forEach(game => {

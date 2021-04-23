@@ -1,6 +1,5 @@
 import { closeDBConnection, connectToDB } from "./generic-helper";
-import { Components } from "../types";
-import Category = Components.Schemas.Category;
+import { Category } from "../types";
 
 export const addCategoryToDB = (categories: Category[]) => {
   return new Promise((resolve, reject) => {
